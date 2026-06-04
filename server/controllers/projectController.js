@@ -197,13 +197,117 @@ exports.deleteProject = async (req, res) => {
       return res.status(404).json({ success: false, message: "Projet introuvable." });
     }
 
-    // [Optionnel] Si tu veux aussi supprimer toutes les tâches liées à ce projet :
-    // const Task = require('../models/Task');
-    // await Task.deleteMany({ project: id });
-
     res.json({ success: true, message: "Projet supprimé avec succès !" });
   } catch (error) {
     console.error("Erreur DELETE project:", error);
     res.status(500).json({ success: false, message: "Erreur lors de la suppression." });
+  }
+};
+
+// ==========================================
+// MEMBERS (GET): /api/projects/:projectId/members
+// ==========================================
+exports.getProjectMembers = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+
+    const project = await Project.findById(projectId)
+      .populate('supervisor', 'fullName email role')
+      .populate('members', 'fullName email role');
+
+    if (!project) {
+      return res.status(404).json({ success: false, message: 'Projet introuvable.' });
+    }
+
+    res.json({
+      success: true,
+      supervisor: project.supervisor || null,
+      members: project.members || [],
+    });
+  } catch (error) {
+    console.error('Erreur getProjectMembers:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur.' });
+  }
+};
+
+// ==========================================
+// MEMBERS (POST): /api/projects/:projectId/members/add
+// body: { email }
+// ==========================================
+exports.addProjectMember = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ success: false, message: "Email requis." });
+    }
+
+    const project = await Project.findById(projectId);
+    if (!project) {
+      return res.status(404).json({ success: false, message: 'Projet introuvable.' });
+    }
+
+    // Vérifier que l'utilisateur inviteur est autorisé (ici: on laisse faire, contrôle côté front)
+    // Si tu veux durcir: on peut exiger role=supervisor.
+
+    const member = await User.findOne({ email: new RegExp(`^${email.trim()}$`, 'i') });
+    if (!member) {
+      return res.status(400).json({ success: false, message: "Cet email n'existe pas." });
+    }
+
+    const memberId = member._id;
+
+    // Empêcher doublon
+    if (project.members.some((id) => id.toString() === memberId.toString())) {
+      return res.status(200).json({ success: true, message: 'Membre déjà dans le projet.', newMember: member });
+    }
+
+    project.members.push(memberId);
+    await project.save();
+
+    const newMember = await User.findById(memberId).select('fullName email role');
+
+    res.json({
+      success: true,
+      message: 'Membre ajouté avec succès !',
+      newMember,
+    });
+  } catch (error) {
+    console.error('Erreur addProjectMember:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur.' });
+  }
+};
+
+exports.getMyProjectsTeams = async (req, res) => {
+  try {
+    // On cherche les projets où l'utilisateur est soit le créateur, soit un membre
+    const projects = await Project.find({
+      $or: [{ creator: req.user.id }, { members: req.user.id }]
+    })
+    .populate('members', 'fullName email role') // On récupère les infos des membres
+    .populate('supervisor', 'fullName email role'); // Et l'encadrant
+
+    res.json({ success: true, projects });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Erreur serveur." });
+  }
+};
+// controllers/projectController.js
+exports.removeProjectMember = async (req, res) => {
+  try {
+    const { projectId, memberId } = req.params;
+
+    const project = await Project.findById(projectId);
+    if (!project) return res.status(404).json({ success: false, message: 'Projet introuvable' });
+
+    // Filtrer le tableau pour retirer l'ID
+    project.members = project.members.filter(id => id.toString() !== memberId);
+    
+    await project.save();
+
+    res.json({ success: true, message: "Membre supprimé avec succès." });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Erreur serveur." });
   }
 };

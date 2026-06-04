@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import Sidebar from '../components/Sidebar'; 
 import ProjectsList from './ProjectsList';
 import MyTasksPage from './MyTasksPage'; // 🚀 AJOUT : Importation de ton nouveau composant
+import Team from './Team'; // Importez votre composant Team
 
 export default function StudentDashboard({ user, setIsAuthenticated, onSelectProject }) {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -267,12 +268,16 @@ const handleUpdateTask = async (taskId, updatedData) => {
           />
         )}
 
+        {/* 🚀 ONGLET ÉQUIPE */}
+        {activeTab === 'team' && <Team />}
+
         {/* ONGLETS EN COURS DE DÉVELOPPEMENT (Pour les autres onglets restants de ta sidebar) */}
-        {!['dashboard', 'projects', 'tasks'].includes(activeTab) && (
+        {!['dashboard', 'projects', 'tasks', 'team'].includes(activeTab) && (
           <div className="flex flex-col items-center justify-center h-[60vh] text-gray-400">
             <p className="text-lg font-semibold">La page "{activeTab}" est en cours de développement...</p>
           </div>
         )}
+
 
       </main>
     </div>

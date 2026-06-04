@@ -1,94 +1,91 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Auth from './pages/Auth';
 import StudentDashboard from './pages/StudentDashboard';
+import SupervisorDashboard from './pages/SupervisorDashboard'; // Importez votre nouveau dashboard
 import ProjectDetails from './pages/ProjectDetails';
-import MyTasksPage from './pages/MyTasksPage'; // 🚀 AJOUT : Import de ta page de tâches
+import MyTasksPage from './pages/MyTasksPage';
+import Team from './pages/Team';
 
 export default function App() {
-  // 🔄 INITIALISATION : Utilisateur stocké dans le localStorage
-  const [currentUser, setCurrentUser] = useState(() => {
-    const savedUser = localStorage.getItem('user');
-    return savedUser ? JSON.parse(savedUser) : null;
-  });
-
-  // 📂 ÉTATS DE NAVIGATION
+  const [currentUser, setCurrentUser] = useState(null);
+  const [loading, setLoading] = useState(true); // État de chargement pour éviter les erreurs "undefined"
   const [currentProjectId, setCurrentProjectId] = useState(null);
-  const [showGlobalTasks, setShowGlobalTasks] = useState(false); // 🚀 AJOUT : Savoir si on est sur l'onglet "Tâches" global
+  const [showGlobalTasks, setShowGlobalTasks] = useState(false);
+  const [showTeam, setShowTeam] = useState(false);
 
-  // Fonction déclenchée après une connexion ou inscription réussie
+  // 🔄 Charger l'utilisateur au démarrage
+  useEffect(() => {
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) {
+      setCurrentUser(JSON.parse(savedUser));
+    }
+    setLoading(false);
+  }, []);
+
   const handleLoginSuccess = (userData, token) => {
-    console.log("Données utilisateur reçues du backend :", userData);
-    
     localStorage.setItem('user', JSON.stringify(userData));
-    if (token) localStorage.setItem('token', token);
-
-    const cleanUser = {
-      ...userData,
-      stats: userData?.stats || { activeProjects: 5, totalTasks: 24, inProgressTasks: 12, pendingReview: 6 },
-      deadline: userData?.deadline || { title: 'Research Paper - Final Draft', projectName: 'AI Research Project', priority: 'high', dueDate: 'Jan 22, 2026', daysLeft: 4 },
-      project: userData?.project || { name: 'AI Research Project', membersCount: 4, status: 'In Progress', progressPercentage: 75 }
-    };
-
-    setCurrentUser(cleanUser);
+    localStorage.setItem('token', token);
+    setCurrentUser(userData);
   };
 
   const handleLogout = () => {
     localStorage.removeItem('user');
     localStorage.removeItem('token');
     setCurrentProjectId(null);
-    setShowGlobalTasks(false); // Réinitialise la vue au logout
+    setShowGlobalTasks(false);
+    setShowTeam(false);
     setCurrentUser(null);
   };
 
-  // 1. ÉCRAN D'AUTHENTIFICATION (Si non connecté)
+  // Tant qu'on vérifie le localStorage, on affiche un écran de chargement
+  if (loading) return <div className="min-h-screen flex items-center justify-center">Chargement...</div>;
+
+  // 1. NON CONNECTÉ
   if (!currentUser) {
-    return <Auth onLoginSuccess={(data, token) => handleLoginSuccess(data, token)} />;
+    return <Auth onLoginSuccess={handleLoginSuccess} />;
   }
 
-  // 2. ÉCRAN DÉTAILS PROJET (Si un projet est cliqué)
+  // 2. ÉCRAN DÉTAILS PROJET
   if (currentProjectId) {
-    return (
-      <ProjectDetails 
-        projectId={currentProjectId} 
-        onBack={() => setCurrentProjectId(null)} 
-      />
-    );
+    return <ProjectDetails projectId={currentProjectId} onBack={() => setCurrentProjectId(null)} />;
   }
 
-  // 3. 🚀 ÉCRAN DE TOUTES LES TÂCHES GLOBALES
-  // Si l'étudiant clique sur "Tâches" dans la sidebar, on affiche cette page
+  // 3. ÉCRAN TÂCHES GLOBALES
   if (showGlobalTasks) {
     return (
       <div className="flex bg-gray-50 min-h-screen">
-        {/* On peut wrapper MyTasksPage ici ou lui passer un bouton retour/sidebar */}
         <div className="flex-1">
-          {/* Bouton temporaire ou barre de retour pour revenir au dashboard principal */}
-          <div className="p-4 bg-white border-b border-gray-200 flex justify-between items-center">
-            <button 
-              onClick={() => setShowGlobalTasks(false)} 
-              className="text-sm font-medium text-indigo-600 hover:text-indigo-800"
-            >
-              ← Retour au Tableau de bord
-            </button>
-            <button onClick={handleLogout} className="text-sm text-red-500 font-medium">Déconnexion</button>
-          </div>
-          
-          <MyTasksPage 
-            currentUserId={currentUser._id || currentUser.id} 
-            userRole={currentUser.role} 
-          />
+          <button onClick={() => setShowGlobalTasks(false)} className="p-4 text-indigo-600">← Retour</button>
+          <MyTasksPage currentUserId={currentUser._id} userRole={currentUser.role} />
         </div>
       </div>
     );
   }
 
-  // 4. ÉCRAN PAR DÉFAUT : Dashboard classique
-  return (
+  // 4. ÉCRAN ÉQUIPE
+  if (showTeam) {
+    return (
+      <div className="flex bg-gray-50 min-h-screen">
+        <div className="flex-1">
+          <button onClick={() => setShowTeam(false)} className="p-4 text-indigo-600">← Retour</button>
+          <Team />
+        </div>
+      </div>
+    );
+  }
+
+  // 5. DASHBOARD CONDITIONNEL (Superviseur vs Étudiant)
+  const isSupervisor = currentUser.role === 'supervisor' || currentUser.role === 'Encadrant';
+
+  return isSupervisor ? (
+    <SupervisorDashboard user={currentUser} onLogout={handleLogout} />
+  ) : (
     <StudentDashboard 
       user={currentUser} 
       setIsAuthenticated={handleLogout} 
-      onSelectProject={(id) => setCurrentProjectId(id)}
-      onNavigateToTasks={() => setShowGlobalTasks(true)} // 👈 🚀 Nouvelle prop envoyée à ton Dashboard pour capter le clic sur la Sidebar !
+      onSelectProject={setCurrentProjectId}
+      onNavigateToTasks={() => setShowGlobalTasks(true)}
+      onNavigateToTeam={() => setShowTeam(true)}
     />
   );
 }

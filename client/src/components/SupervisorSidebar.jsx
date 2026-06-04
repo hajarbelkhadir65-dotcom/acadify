@@ -2,9 +2,8 @@ import React from "react";
 import {
   LayoutDashboard,
   FolderGit2,
-  CheckSquare,
   Users,
-  MessageSquare,
+  FileText,
   LogOut,
 } from "lucide-react";
 
@@ -12,36 +11,22 @@ export default function Sidebar({
   activeTab,
   setActiveTab,
   setIsAuthenticated,
-  onNavigateToTeam,   // 👈 Prop ajoutée pour le chaînage
-  onNavigateToTasks,  // 👈 Prop ajoutée pour le chaînage
 }) {
   const menuItems = [
-    { id: "dashboard", label: "Tableau de bord", icon: LayoutDashboard },
-    { id: "projects", label: "Projets", icon: FolderGit2 },
-    { id: "tasks", label: "Tâches", icon: CheckSquare },
-    { id: "team", label: "Équipe", icon: Users },
-    { id: "discussion", label: "Discussion", icon: MessageSquare },
+    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { id: "projects", label: "Mes Projets", icon: FolderGit2 },
+    { id: "students", label: "Étudiants", icon: Users },
+    { id: "reports", label: "Rapports", icon: FileText },
   ];
-
-  const handleMenuClick = (item) => {
-    setActiveTab(item.id); // Met à jour l'état visuel actif
-
-    // Gestion de la navigation selon l'élément cliqué
-    if (item.id === "team" && onNavigateToTeam) {
-      onNavigateToTeam();
-    } else if (item.id === "tasks" && onNavigateToTasks) {
-      onNavigateToTasks();
-    }
-    // Pour "dashboard" et "projects", ils restent gérés par setActiveTab 
-    // ou la logique interne du StudentDashboard.
-  };
 
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
+
     if (typeof setIsAuthenticated === "function") {
       setIsAuthenticated(false);
     }
+
     window.location.href = "/";
   };
 
@@ -50,7 +35,9 @@ export default function Sidebar({
       <div className="space-y-8">
         <div>
           <h1 className="text-2xl font-bold text-purple-600">Acadify</h1>
-          <p className="text-xs text-gray-400 font-medium">Projets Académiques</p>
+          <p className="text-xs text-gray-400 font-medium">
+            Projets Académiques
+          </p>
         </div>
 
         <nav className="space-y-1">
@@ -61,7 +48,7 @@ export default function Sidebar({
             return (
               <button
                 key={item.id}
-                onClick={() => handleMenuClick(item)} // 👈 Utilisation du gestionnaire de clic
+                onClick={() => setActiveTab(item.id)}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-all ${
                   isActive
                     ? "bg-purple-50 text-purple-600 font-bold"

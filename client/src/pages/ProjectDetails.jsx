@@ -98,7 +98,7 @@ export default function ProjectDetails({ projectId, onBack, setActiveTab }) {
 
   try {
     const token = localStorage.getItem('token');
-    const response = await axios.post('http://localhost:5000/api/tasks', {
+    const response = await axios.post('http://localhost:5000/api/tasks/create', {
       title: taskTitle,
       description: taskDescription,
       priority: taskPriority,
@@ -137,7 +137,7 @@ export default function ProjectDetails({ projectId, onBack, setActiveTab }) {
   const handleUpdateStatus = async (taskId, newStatus) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.put(`http://localhost:5000/api/tasks/${taskId}/status`, {
+      const response = await axios.patch(`http://localhost:5000/api/tasks/${taskId}/status`, {
         status: newStatus
       }, {
         headers: { Authorization: `Bearer ${token}` }

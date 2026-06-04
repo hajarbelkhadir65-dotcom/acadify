@@ -12,6 +12,7 @@ const User = require('./models/User');
 const projectRoutes = require('./routes/projectRoutes');
 const taskRoutes = require('./routes/taskRoutes'); // 🚀 AJOUT : Import des routes pour les tâches
 const dashboardRoutes = require('./routes/dashboardRoutes');
+const supervisorRoutes = require('./routes/supervisorRoutes');
 const app = express();
 const PORT = 5000;
 const JWT_SECRET = "acadify_secret_key_2026";
@@ -38,6 +39,7 @@ app.use('/api/projects', projectRoutes);
 
 app.use('/api/tasks', taskRoutes); // 👈 C'est cette ligne qui donne le préfixe "/api/tasks"
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/supervisor', supervisorRoutes);
 // ==========================================
 // 🌐 ROUTE : INSCRIPTION (REGISTER)
 // ==========================================

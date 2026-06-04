@@ -72,6 +72,9 @@ const ProjectMembers = ({ projectId, currentUserId, userRole }) => {
     }
   };
 
+  // Vérification des droits : l'encadrant ne peut pas inviter d'étudiants
+  const isEncadrant = userRole === 'supervisor' || userRole === 'Encadrant';
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12 text-gray-400 gap-2">
@@ -79,16 +82,35 @@ const ProjectMembers = ({ projectId, currentUserId, userRole }) => {
       </div>
     );
   }
+// ... (ajoutez ceci dans vos fonctions de ProjectMembers)
 
-  // Vérification des droits : l'encadrant ne peut pas inviter d'étudiants
-  const isEncadrant = userRole === 'supervisor' || userRole === 'Encadrant';
+
+const handleRemoveMember = async (memberId) => {
+  if (!window.confirm("Êtes-vous sûr de vouloir retirer ce membre du projet ?")) return;
+
+  try {
+    const token = localStorage.getItem('token');
+    await axios.delete(`http://localhost:5000/api/projects/${projectId}/members/${memberId}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    // Mettre à jour la liste localement (backend renvoie un simple succès)
+    setMembers(prev => prev.filter(m => m._id !== memberId));
+
+  } catch (err) {
+    console.error("Erreur lors de la suppression", err);
+    alert("Impossible de supprimer le membre.");
+  }
+};
 
   return (
+
     <div className="space-y-6 animate-in fade-in duration-200">
       
       {/* --- SECTION ENCADRANT --- */}
       {supervisor ? (
         <div>
+
           <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
             Encadrant du projet
           </h3>
@@ -139,29 +161,43 @@ const ProjectMembers = ({ projectId, currentUserId, userRole }) => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {members.map((member) => (
-              <div 
-                key={member._id} 
-                className="bg-white border border-gray-100 rounded-2xl p-4 flex items-center justify-between shadow-sm hover:border-gray-200 transition-all"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold uppercase">
-                    {member.fullName?.charAt(0)}
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-gray-900 capitalize">
-                      {member.fullName} {member._id === currentUserId && <span className="text-xs font-normal text-gray-400">(Moi)</span>}
-                    </h4>
-                    <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
-                      <Mail size={12} /> {member.email}
-                    </p>
-                  </div>
-                </div>
-                <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-gray-50 text-gray-500 border border-gray-100">
-                  Étudiant
-                </span>
-              </div>
-            ))}
+           {members.map((member) => (
+  <div 
+    key={member._id} 
+    className="bg-white border border-gray-100 rounded-2xl p-4 flex items-center justify-between shadow-sm hover:border-gray-200 transition-all"
+  >
+    <div className="flex items-center gap-3">
+      <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold uppercase">
+        {member.fullName?.charAt(0)}
+      </div>
+      <div>
+        <h4 className="font-bold text-gray-900 capitalize">
+          {member.fullName} {member._id === currentUserId && <span className="text-xs font-normal text-gray-400">(Moi)</span>}
+        </h4>
+        <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+          <Mail size={12} /> {member.email}
+        </p>
+      </div>
+    </div>
+    
+    <div className="flex items-center gap-2">
+      <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-gray-50 text-gray-500 border border-gray-100">
+        Étudiant
+      </span>
+      
+      {/* Bouton de suppression */}
+      {!isEncadrant && (
+        <button 
+          onClick={() => handleRemoveMember(member._id)}
+          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+          title="Retirer du projet"
+        >
+          <X size={16} />
+        </button>
+      )}
+    </div>
+  </div>
+))}
           </div>
         )}
       </div>
