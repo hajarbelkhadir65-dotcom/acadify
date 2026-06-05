@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const taskController = require('../controllers/taskController');
-const { authMiddleware } = require('../middlewares/authMiddleware'); // Ton middleware d'authentification
+const authMiddleware = require('../middlewares/authMiddleware'); // Ton middleware d'authentification
 
 // Toutes les routes nécessitent d'être connecté
 router.use(authMiddleware);

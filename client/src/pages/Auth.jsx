@@ -54,8 +54,9 @@ export default function Auth({ onLoginSuccess }) { // <-- On reçoit une fonctio
         localStorage.setItem('token', response.data.token);
         
         // On transmet les vraies données de l'utilisateur connecté à l'application
+        // + le token pour que App.tsx le mette dans localStorage
         if (onLoginSuccess) {
-          onLoginSuccess(response.data.user);
+          onLoginSuccess(response.data.user, response.data.token);
         }
       }
     } catch (error) {

@@ -16,14 +16,29 @@ const authMiddleware = (req, res, next) => {
   try {
     // Vérification du jeton
     const decoded = jwt.verify(token, JWT_SECRET);
-    
-    // On injecte l'ID de l'utilisateur dans la requête pour pouvoir l'utiliser plus tard
-    req.user = decoded; 
-    
+
+    // Normaliser selon le schéma attendu dans les contrôleurs (req.user.id)
+    req.user = {
+      ...decoded,
+      id: decoded.id || decoded._id,
+      role: decoded.role,
+    };
+
+    if (!req.user.id) {
+      return res.status(401).json({ success: false, message: "Token invalide: id manquant." });
+    }
+
     next(); // On passe au contrôleur suivant
   } catch (error) {
-    return res.status(401).json({ success: false, message: "Token invalide ou expiré." });
+    const errName = error?.name || 'JWT_ERROR';
+    const errMsg = error?.message || '';
+    return res.status(401).json({
+      success: false,
+      message: "Token invalide ou expiré.",
+      debug: { errName, errMsg },
+    });
   }
 };
 
-module.exports = { authMiddleware };
+// Tout en bas de authMiddleware.js, remplace par :
+module.exports = authMiddleware;

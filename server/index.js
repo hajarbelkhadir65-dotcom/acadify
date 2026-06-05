@@ -16,7 +16,9 @@ const supervisorRoutes = require('./routes/supervisorRoutes');
 const app = express();
 const PORT = 5000;
 const JWT_SECRET = "acadify_secret_key_2026";
-
+app.get('/api/test', (req, res) => {
+    res.send("Le serveur répond !");
+});
 // Middlewares globaux
 app.use(cors());
 app.use(express.json());

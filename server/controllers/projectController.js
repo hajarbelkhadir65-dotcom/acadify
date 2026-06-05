@@ -8,13 +8,42 @@ const mongoose = require('mongoose');
 exports.getProjects = async (req, res) => {
   try {
     // Le .populate transforme les IDs stockés en objets contenant le fullName et l'email
+    // IMPORTANT: on calcule aussi `progressPercentage` à partir des tâches (réel)
+    // sinon ProjectsList affiche 0% même quand il y a des tâches terminées.
     const projects = await Project.find()
       .populate('supervisor', 'fullName email role') 
-      .populate('members', 'fullName email role')
-      .populate('creator', 'fullName email')
+      .populate('members', 'fullName email role') 
+      .populate('creator', 'fullName email') 
       .sort({ createdAt: -1 }); // Les plus récents en premier
 
-    res.json({ success: true, projects });
+    // Calcul réel progressPercentage basé sur Task.status === 'Done'
+    const Task = require('../models/Task');
+    const projectIds = projects.map(p => p._id);
+    const tasks = await Task.find({ project: { $in: projectIds } }).select('project status');
+
+    const normalizeStatus = (s) => (s || '').toString().trim().toLowerCase();
+    const statsByProjectId = tasks.reduce((acc, t) => {
+      const pid = t.project?.toString();
+      if (!pid) return acc;
+      if (!acc[pid]) acc[pid] = { totalTasks: 0, doneTasks: 0 };
+      acc[pid].totalTasks += 1;
+      const st = normalizeStatus(t.status);
+      if (st === 'done' || st === 'terminé' || st === 'termine') acc[pid].doneTasks += 1;
+      return acc;
+    }, {});
+
+    const projectsWithProgress = projects.map(p => {
+      const pid = p._id.toString();
+      const st = statsByProjectId[pid] || { totalTasks: 0, doneTasks: 0 };
+      const progressPercentage = st.totalTasks > 0 ? Math.round((st.doneTasks / st.totalTasks) * 100) : 0;
+      return {
+        ...p.toObject(),
+        progressPercentage
+      };
+    });
+
+    res.json({ success: true, projects: projectsWithProgress });
+
   } catch (error) {
     console.error("❌ Erreur dans GET /api/projects :", error);
     res.status(500).json({ success: false, message: 'Erreur lors de la récupération des projets.' });
@@ -297,8 +326,10 @@ exports.getMyProjectsTeams = async (req, res) => {
 exports.removeProjectMember = async (req, res) => {
   try {
     const { projectId, memberId } = req.params;
+    console.log('[removeProjectMember] params', { projectId, memberId });
 
     const project = await Project.findById(projectId);
+    console.log('[removeProjectMember] Project found?', !!project);
     if (!project) return res.status(404).json({ success: false, message: 'Projet introuvable' });
 
     // Filtrer le tableau pour retirer l'ID

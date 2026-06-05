@@ -265,13 +265,17 @@ export default function ProjectsList({ onSelectProject }) {
 
               {/* Barre de Progression et Actions */}
               <div className="space-y-3 pt-2">
-                <div className="flex justify-between text-xs font-bold text-gray-500">
+                  <div className="flex justify-between text-xs font-bold text-gray-500">
                   <span>Progression</span>
-                  <span>{project.progressPercentage || 0}%</span>
+                  <span>{project.progressPercentage || project.progress || 0}%</span>
                 </div>
                 <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
-                  <div className="bg-purple-600 h-full rounded-full transition-all duration-500" style={{ width: `${project.progressPercentage || 0}%` }}></div>
+                  <div
+                    className="bg-purple-600 h-full rounded-full transition-all duration-500"
+                    style={{ width: `${project.progressPercentage || project.progress || 0}%` }}
+                  ></div>
                 </div>
+
 
                 {/* Barre d'outils Actions */}
                 <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-50 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">

@@ -1,19 +1,36 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import Auth from './pages/Auth';
 import StudentDashboard from './pages/StudentDashboard';
-import SupervisorDashboard from './pages/SupervisorDashboard'; // Importez votre nouveau dashboard
+import SupervisorDashboard from './pages/SupervisorDashboard';
 import ProjectDetails from './pages/ProjectDetails';
 import MyTasksPage from './pages/MyTasksPage';
 import Team from './pages/Team';
 
+// 🌐 Configuration globale de l'API Axios
+axios.defaults.baseURL = 'http://localhost:5000';
+
+axios.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
-  const [loading, setLoading] = useState(true); // État de chargement pour éviter les erreurs "undefined"
+  const [loading, setLoading] = useState(true); 
   const [currentProjectId, setCurrentProjectId] = useState(null);
   const [showGlobalTasks, setShowGlobalTasks] = useState(false);
   const [showTeam, setShowTeam] = useState(false);
 
-  // 🔄 Charger l'utilisateur au démarrage
+  // 🔄 Charger l'utilisateur et synchroniser Axios au démarrage
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
     if (savedUser) {
@@ -37,52 +54,62 @@ export default function App() {
     setCurrentUser(null);
   };
 
-  // Tant qu'on vérifie le localStorage, on affiche un écran de chargement
-  if (loading) return <div className="min-h-screen flex items-center justify-center">Chargement...</div>;
+  // Écran de chargement initial
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600 font-medium">Chargement d'Acadify...</p>
+        </div>
+      </div>
+    );
+  }
 
-  // 1. NON CONNECTÉ
+  // 1. UTILISATEUR NON CONNECTÉ
   if (!currentUser) {
     return <Auth onLoginSuccess={handleLoginSuccess} />;
   }
 
-  // 2. ÉCRAN DÉTAILS PROJET
-  if (currentProjectId) {
-    return <ProjectDetails projectId={currentProjectId} onBack={() => setCurrentProjectId(null)} />;
-  }
-
-  // 3. ÉCRAN TÂCHES GLOBALES
-  if (showGlobalTasks) {
-    return (
-      <div className="flex bg-gray-50 min-h-screen">
-        <div className="flex-1">
-          <button onClick={() => setShowGlobalTasks(false)} className="p-4 text-indigo-600">← Retour</button>
-          <MyTasksPage currentUserId={currentUser._id} userRole={currentUser.role} />
-        </div>
-      </div>
-    );
-  }
-
-  // 4. ÉCRAN ÉQUIPE
-  if (showTeam) {
-    return (
-      <div className="flex bg-gray-50 min-h-screen">
-        <div className="flex-1">
-          <button onClick={() => setShowTeam(false)} className="p-4 text-indigo-600">← Retour</button>
-          <Team />
-        </div>
-      </div>
-    );
-  }
-
-  // 5. DASHBOARD CONDITIONNEL (Superviseur vs Étudiant)
+  // 2. VÉRIFICATION DU RÔLE
   const isSupervisor = currentUser.role === 'supervisor' || currentUser.role === 'Encadrant';
 
+  // 3. AFFICHAGE DES ÉCRANS ÉTUDIANTS (Si un ID ou état est actif)
+  if (!isSupervisor) {
+    if (currentProjectId) {
+      return <ProjectDetails projectId={currentProjectId} onBack={() => setCurrentProjectId(null)} />;
+    }
+
+    if (showGlobalTasks) {
+      return (
+        <div className="bg-gray-50 min-h-screen">
+          <button onClick={() => setShowGlobalTasks(false)} className="p-4 text-indigo-600 font-medium hover:underline">
+            ← Retour au Dashboard
+          </button>
+          <MyTasksPage currentUserId={currentUser.id || currentUser._id} userRole={currentUser.role} />
+        </div>
+      );
+    }
+
+    if (showTeam) {
+      return (
+        <div className="bg-gray-50 min-h-screen">
+          <button onClick={() => setShowTeam(false)} className="p-4 text-indigo-600 font-medium hover:underline">
+            ← Retour au Dashboard
+          </button>
+          <Team />
+        </div>
+      );
+    }
+  }
+
+  // 4. RENDU DES DASHBOARDS PRINCIPAUX
   return isSupervisor ? (
     <SupervisorDashboard user={currentUser} onLogout={handleLogout} />
   ) : (
     <StudentDashboard 
       user={currentUser} 
-      setIsAuthenticated={handleLogout} 
+      setIsAuthenticated={handleLogout} // Conserve ta fonction de déconnexion
       onSelectProject={setCurrentProjectId}
       onNavigateToTasks={() => setShowGlobalTasks(true)}
       onNavigateToTeam={() => setShowTeam(true)}

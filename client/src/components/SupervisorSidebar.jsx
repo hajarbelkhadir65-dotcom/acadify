@@ -3,40 +3,30 @@ import {
   LayoutDashboard,
   FolderGit2,
   Users,
-  FileText,
+  Settings,
   LogOut,
 } from "lucide-react";
 
-export default function Sidebar({
+export default function SupervisorSidebar({
   activeTab,
   setActiveTab,
-  setIsAuthenticated,
+  setIsAuthenticated, // Reçu de ton App.jsx pour la déconnexion
 }) {
+  // Liste complète et dynamique des menus pour l'encadrant
   const menuItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { id: "projects", label: "Mes Projets", icon: FolderGit2 },
-    { id: "students", label: "Étudiants", icon: Users },
-    { id: "reports", label: "Rapports", icon: FileText },
+    { id: "projects", label: "Projets Supervisés", icon: FolderGit2 },
+    { id: "students", label: "Mes Étudiants", icon: Users },
+    { id: "settings", label: "Paramètres", icon: Settings },
   ];
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-
-    if (typeof setIsAuthenticated === "function") {
-      setIsAuthenticated(false);
-    }
-
-    window.location.href = "/";
-  };
-
   return (
-    <aside className="w-64 bg-white border-r border-gray-100 flex flex-col justify-between p-6 h-screen sticky top-0">
+    <aside className="w-64 bg-white border-r border-gray-100 flex flex-col justify-between p-6 h-screen sticky top-0 shrink-0">
       <div className="space-y-8">
         <div>
           <h1 className="text-2xl font-bold text-purple-600">Acadify</h1>
           <p className="text-xs text-gray-400 font-medium">
-            Projets Académiques
+            Espace Encadrant
           </p>
         </div>
 
@@ -64,7 +54,7 @@ export default function Sidebar({
       </div>
 
       <button
-        onClick={handleLogout}
+        onClick={setIsAuthenticated} // Appelle handleLogout du parent
         className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-gray-500 hover:bg-red-50 hover:text-red-600 transition-all"
       >
         <LogOut size={18} />

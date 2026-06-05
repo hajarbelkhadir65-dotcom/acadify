@@ -1,6 +1,8 @@
 
 const Task = require('../models/Task');
 const User = require('../models/User');
+const mongoose = require('mongoose');
+
 
 // ==========================================
 // 1. RÉCUPÉRER TOUTES MES TÂCHES GLOBALES

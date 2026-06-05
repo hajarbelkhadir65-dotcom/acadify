@@ -88,7 +88,12 @@ const ProjectMembers = ({ projectId, currentUserId, userRole }) => {
 const handleRemoveMember = async (memberId) => {
   if (!window.confirm("Êtes-vous sûr de vouloir retirer ce membre du projet ?")) return;
 
+  // IMPORTANT: le backend attend l'URL /api/projects/:projectId/members/:memberId
+  // Donc on doit appeler cette route avec projectId + memberId.
+
+
   try {
+    console.log('DELETE member - params', { projectId, memberId });
     const token = localStorage.getItem('token');
     await axios.delete(`http://localhost:5000/api/projects/${projectId}/members/${memberId}`, {
       headers: { Authorization: `Bearer ${token}` }

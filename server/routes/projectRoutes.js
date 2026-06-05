@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const projectController = require('../controllers/projectController');
-const { authMiddleware } = require('../middlewares/authMiddleware');
+const authMiddleware = require('../middlewares/authMiddleware');
 
 // 1. Routes avec des chemins fixes
 router.get('/my-projects/teams', authMiddleware, projectController.getMyProjectsTeams);
