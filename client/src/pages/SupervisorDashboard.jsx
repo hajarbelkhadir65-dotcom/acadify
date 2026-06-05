@@ -20,6 +20,60 @@ export default function SupervisorDashboard({ user, onLogout }) {
   const [stats, setStats] = useState(null);
   const [loadingStats, setLoadingStats] = useState(true);
 
+  // --- Notifications ---
+  const [openNotifications, setOpenNotifications] = useState(false);
+  const [notificationsList, setNotificationsList] = useState([]);
+  const [notificationsUnreadCount, setNotificationsUnreadCount] = useState(0);
+
+  // notifications: chargement
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        const resNotif = await axios.get('/api/notifications/my', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (resNotif.data?.success) {
+          setNotificationsList(resNotif.data.notifications || []);
+          setNotificationsUnreadCount(resNotif.data.unreadCount || 0);
+        }
+      } catch (e) {
+        console.error('Erreur chargement notifications:', e);
+      }
+    };
+
+    if (openNotifications || activeTab === 'dashboard') {
+      fetchNotifications();
+    }
+  }, [openNotifications, activeTab]);
+
+  const markNotificationAsRead = async (id) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.patch(`/api/notifications/${id}/read`, {}, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const resNotif = await axios.get('/api/notifications/my', {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      });
+
+      if (resNotif.data?.success) {
+        setNotificationsList(resNotif.data.notifications || []);
+        setNotificationsUnreadCount(resNotif.data.unreadCount || 0);
+      }
+    } catch (e) {
+      console.error('Erreur mark as read:', e);
+    }
+  };
+
+
+
+
+
   // Récupération dynamique des KPI globaux pour la vue d'ensemble
   useEffect(() => {
     const fetchDashboardStats = async () => {
@@ -59,7 +113,46 @@ export default function SupervisorDashboard({ user, onLogout }) {
 
       {/* ZONE DE CONTENU PRINCIPALE */}
       <main className="flex-1 p-8 overflow-y-auto h-screen space-y-8">
-        
+        {/* --- Notifications dropdown --- */}
+        {openNotifications && (
+          <div className="absolute right-6 top-16 w-[420px] bg-white border border-gray-100 shadow-xl rounded-2xl overflow-hidden z-50">
+            <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-bold text-gray-900">Notifications</p>
+                <p className="text-xs text-gray-500">{notificationsUnreadCount} non lue(s)</p>
+              </div>
+              <button
+                className="text-xs font-bold text-gray-500 hover:text-gray-900"
+                onClick={() => setOpenNotifications(false)}
+              >
+                Fermer
+              </button>
+            </div>
+            <div className="max-h-[360px] overflow-y-auto p-2">
+              {notificationsList.length === 0 ? (
+                <div className="p-6 text-center text-xs text-gray-400">Aucune notification.</div>
+              ) : (
+                notificationsList.map((n) => (
+                  <button
+                    key={n._id}
+                    onClick={() => markNotificationAsRead(n._id)}
+                    className={`w-full text-left px-3 py-3 rounded-xl transition-all mb-1 border ${
+                      n.isRead
+                        ? 'bg-white border-transparent hover:bg-gray-50'
+                        : 'bg-purple-50/60 border-purple-200 hover:bg-purple-50/60'
+                    }`}
+                  >
+                    <p className={`text-sm font-bold ${n.isRead ? 'text-gray-800' : 'text-purple-700'}`}>{n.message}</p>
+                    <p className="text-[10px] mt-1 text-gray-500">
+                      {n.createdAt ? new Date(n.createdAt).toLocaleString('fr-FR') : ''}
+                    </p>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
         {/* EN-TÊTE CHERCHER / PROFIL */}
         <header className="flex items-center justify-between">
           <div className="relative w-80">
@@ -74,9 +167,14 @@ export default function SupervisorDashboard({ user, onLogout }) {
           </div>
 
           <div className="flex items-center gap-5">
-            <button className="relative p-2 text-gray-400 hover:text-purple-600 bg-white border border-gray-100 rounded-xl shadow-sm transition-colors">
+            <button
+              className="relative p-2 text-gray-400 hover:text-purple-600 bg-white border border-gray-100 rounded-xl shadow-sm transition-colors"
+              onClick={() => setOpenNotifications((v) => !v)}
+            >
               <Bell size={18} />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-purple-500 rounded-full"></span>
+              {notificationsUnreadCount > 0 && (
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-purple-500 rounded-full"></span>
+              )}
             </button>
             
             <div className="flex items-center gap-3">

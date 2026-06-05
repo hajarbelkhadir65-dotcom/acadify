@@ -1,5 +1,6 @@
 const Project = require('../models/Project');
 const User = require('../models/User');
+const Notification = require('../models/Notification');
 const mongoose = require('mongoose');
 
 // ==========================================
@@ -119,19 +120,50 @@ exports.createProject = async (req, res) => {
     await newProject.save();
     console.log("✅ Projet inséré avec succès dans MongoDB !");
 
-    // E. POPULATE IMMEDIAT : On recharge le projet fraîchement créé pour y injecter les noms 
-    // afin que le premier rendu sur React affiche directement les textes au lieu des IDs bruts.
+    // === Notifications métier ===
+    // F. POPULATE IMMEDIAT : On recharge le projet fraîchement créé pour y injecter les noms
     const populatedProject = await Project.findById(newProject._id)
-      .populate('supervisor', 'fullName email')
-      .populate('members', 'fullName email')
-      .populate('creator', 'fullName email');
+      .populate('supervisor', 'fullName email role')
+      .populate('members', 'fullName email role')
+      .populate('creator', 'fullName email role');
+
+    const creatorName = populatedProject.creator?.fullName || 'Un créateur';
+    const supervisorName = populatedProject.supervisor?.fullName || 'Un encadrant';
+
+    // 1) Notification encadrant : attribution du projet
+    await Notification.create({
+      user: populatedProject.supervisor?._id,
+      project: populatedProject._id,
+      type: 'NEW_PROJECT_SUPERVISOR',
+      message: `📁 Nouveau Projet : Vous avez été assigné comme encadrant du projet ${populatedProject.name} créé par ${creatorName}`,
+      createdBy: populatedProject.creator?._id,
+      role: 'supervisor',
+      isRead: false,
+    });
+
+    // 2) Notification étudiants : invitation
+    const memberUsers = populatedProject.members || [];
+    await Promise.all(
+      memberUsers.map((m) =>
+        Notification.create({
+          user: m._id,
+          project: populatedProject._id,
+          type: 'PROJECT_INVITATION',
+          message: `👥 Invitation : Vous avez été invité à rejoindre le projet ${populatedProject.name} par ${creatorName}`,
+          createdBy: populatedProject.creator?._id,
+          role: 'student',
+          isRead: false,
+        })
+      )
+    );
 
     // Réponse de succès envoyée au frontend
-    res.status(201).json({ 
-      success: true, 
-      message: "Projet académique créé avec succès !", 
-      project: populatedProject 
+    res.status(201).json({
+      success: true,
+      message: "Projet académique créé avec succès !",
+      project: populatedProject,
     });
+
 
   } catch (error) {
     console.error("💥 Erreur critique lors de la création :", error);
@@ -206,6 +238,44 @@ exports.updateProject = async (req, res) => {
 
     if (!updatedProject) {
       return res.status(404).json({ success: false, message: "Projet introuvable." });
+    }
+
+    // ======================
+    // Notifications métier
+    // ======================
+    const normalizeStatus = (s) => (s || '').toString().trim().toLowerCase();
+    const isNowTerminated = normalizeStatus(updatedProject.status) === 'terminé' || normalizeStatus(updatedProject.status) === 'termine' || normalizeStatus(updatedProject.status) === 'done';
+
+    if (isNowTerminated) {
+      const supervisor = updatedProject.supervisor;
+      const projectName = updatedProject.name;
+
+      if (supervisor?._id) {
+        await Notification.create({
+          user: supervisor._id,
+          project: updatedProject._id,
+          type: 'PROJECT_TERMINATED_SUPERVISOR',
+          message: `📑 Projet Clôturé : L'équipe du projet ${projectName} a marqué son projet comme Terminé et attend votre évaluation.`,
+          createdBy: supervisor._id,
+          role: 'supervisor',
+          isRead: false,
+        });
+      }
+
+      const memberUsers = updatedProject.members || [];
+      await Promise.all(
+        memberUsers.map((m) =>
+          Notification.create({
+            user: m._id,
+            project: updatedProject._id,
+            type: 'PROJECT_TERMINATED_STUDENTS',
+            message: `🎉 Félicitations ! Votre projet ${projectName} est désormais marqué comme Terminé. Beau travail d'équipe !`,
+            createdBy: supervisor?._id,
+            role: 'student',
+            isRead: false,
+          })
+        )
+      );
     }
 
     res.json({ success: true, message: "Projet mis à jour avec succès !", project: updatedProject });

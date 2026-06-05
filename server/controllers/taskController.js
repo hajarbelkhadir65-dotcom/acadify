@@ -2,6 +2,7 @@
 const Task = require('../models/Task');
 const User = require('../models/User');
 const mongoose = require('mongoose');
+const Notification = require('../models/Notification');
 
 
 // ==========================================
@@ -85,6 +86,7 @@ exports.updateTaskStatus = async (req, res) => {
     const userId = req.user.id;
     const userRole = req.user.role;
 
+
     if (!['To Do', 'In Progress', 'Done', 'À Faire', 'En Cours', 'Terminé'].includes(status)) {
       return res.status(400).json({ success: false, message: "Statut invalide." });
     }
@@ -100,10 +102,83 @@ exports.updateTaskStatus = async (req, res) => {
       return res.status(403).json({ success: false, message: "Non autorisé à modifier ce statut." });
     }
 
+    const previousStatus = task.status;
+
     task.status = status;
     await task.save();
 
-    const updatedTask = await Task.findById(taskId).populate('assignedTo', 'fullName email');
+const updatedTask = await Task.findById(taskId)
+      .populate('assignedTo', 'fullName email')
+      .populate('project', 'name supervisor members');
+
+    // Récupération du nom de l'acteur (celui qui déplace la tâche)
+    // Info de projet pour construire les messages
+    const project = updatedTask.project;
+    const projectName = project?.name || 'Projet';
+
+    const actorUserId = userId;
+    const actorNameFinal = (await User.findById(userId).select('fullName'))?.fullName || 'Un étudiant';
+
+
+
+
+    // ======================
+    // Notifications métier
+    // ======================
+    const normalizeStatus = (s) => (s || '').toString().trim().toLowerCase();
+    const isNowDone = normalizeStatus(status) === 'done' || normalizeStatus(status) === 'terminé' || normalizeStatus(status) === 'termine';
+    const wasDone = normalizeStatus(previousStatus) === 'done' || normalizeStatus(previousStatus) === 'terminé' || normalizeStatus(previousStatus) === 'termine';
+
+    // On notifie seulement si on vient de passer en Done
+    if (isNowDone && !wasDone) {
+      const project = updatedTask.project;
+
+const actorUserIdLocal = actorUserId;
+      const actorName = actorNameFinal;
+
+
+      const taskTitle = updatedTask.title;
+      const projectName = project?.name || 'Projet';
+
+      // 1) Encadrant : tâche terminée
+      if (project?.supervisor) {
+        await Notification.create({
+          user: project.supervisor,
+          project: project._id,
+          task: updatedTask._id,
+          type: 'TASK_DONE_SUPERVISOR',
+          message: `✅ Tâche Terminée : L'étudiant ${actorName} a terminé la tâche "${taskTitle}" dans le projet ${projectName}.`,
+          createdBy: actorUserId,
+          role: 'supervisor',
+          isRead: false,
+        });
+      }
+
+      // 2) Étudiants : coéquipiers (tous sauf l’acteur)
+const memberIds = (project?.members || []).map((id) => id.toString());
+      const targets = memberIds.filter((id) => id !== actorUserId);
+
+      // Si le projet n'a pas de tableau members cohérent, on évite l'envoi vide.
+      // (Optionnel) tu peux aussi notifier assignedTo si tu veux, mais ici on suit ta règle : coéquipiers = membres du projet.
+
+
+      if (targets.length > 0) {
+        await Promise.all(
+          targets.map((uid) =>
+            Notification.create({
+              user: uid,
+              project: project._id,
+              task: updatedTask._id,
+              type: 'TASK_DONE_STUDENTS',
+              message: `🚀 Avancement : Votre coéquipier ${actorName} a terminé la tâche "${taskTitle}" dans le projet ${projectName}.`,
+              createdBy: actorUserId,
+              role: 'student',
+              isRead: false,
+            })
+          )
+        );
+      }
+    }
 
     return res.status(200).json({
       success: true,

@@ -14,9 +14,11 @@ const taskRoutes = require('./routes/taskRoutes'); // 🚀 AJOUT : Import des ro
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const supervisorRoutes = require('./routes/supervisorRoutes');
 const studentRoutes = require('./routes/studentRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
 const app = express();
 const PORT = 5000;
 const JWT_SECRET = "acadify_secret_key_2026";
+
 app.get('/api/test', (req, res) => {
     res.send("Le serveur répond !");
 });
@@ -44,6 +46,7 @@ app.use('/api/tasks', taskRoutes); // 👈 C'est cette ligne qui donne le préfi
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/supervisor', supervisorRoutes);
 app.use('/api/student', studentRoutes);
+app.use('/api/notifications', notificationRoutes);
 // ==========================================
 // 🌐 ROUTE : INSCRIPTION (REGISTER)
 // ==========================================
@@ -118,3 +121,4 @@ app.post('/api/auth/login', async (req, res) => {
 
 // 🚀 ÉCOUTE DU PORT (Toujours tout à la fin)
 app.listen(PORT, () => console.log(`🚀 Serveur actif sur http://localhost:${PORT}`));
+
