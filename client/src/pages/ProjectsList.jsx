@@ -32,7 +32,7 @@ export default function ProjectsList({ onSelectProject }) {
   const fetchProjects = async () => {
     try {
       const token = localStorage.getItem('token'); 
-      const response = await axios.get('http://localhost:5000/api/projects', {
+      const response = await axios.get('http://localhost:5000/api/projects/my-projects/teams', {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (response.data.success) {

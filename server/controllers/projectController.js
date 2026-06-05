@@ -8,14 +8,22 @@ const mongoose = require('mongoose');
 // ==========================================
 exports.getProjects = async (req, res) => {
   try {
-    // Le .populate transforme les IDs stockés en objets contenant le fullName et l'email
     // IMPORTANT: on calcule aussi `progressPercentage` à partir des tâches (réel)
-    // sinon ProjectsList affiche 0% même quand il y a des tâches terminées.
-    const projects = await Project.find()
-      .populate('supervisor', 'fullName email role') 
-      .populate('members', 'fullName email role') 
-      .populate('creator', 'fullName email') 
+    const role = (req.user?.role || '').toString().trim().toLowerCase();
+    const userId = req.user?.id;
+
+    // Étudiant : ne doit voir que ses projets (créés ou où il est membre)
+    // Professeur/Encadrant : comportement inchangé (tous les projets)
+    const filter = (role === 'etudiant' || role === 'student') && userId
+      ? { $or: [{ creator: userId }, { members: userId }] }
+      : {};
+
+    const projects = await Project.find(filter)
+      .populate('supervisor', 'fullName email role')
+      .populate('members', 'fullName email role')
+      .populate('creator', 'fullName email')
       .sort({ createdAt: -1 }); // Les plus récents en premier
+
 
     // Calcul réel progressPercentage basé sur Task.status === 'Done'
     const Task = require('../models/Task');
