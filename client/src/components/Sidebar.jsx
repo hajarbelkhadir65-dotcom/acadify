@@ -20,7 +20,7 @@ export default function Sidebar({
     { id: "projects", label: "Projets", icon: FolderGit2 },
     { id: "tasks", label: "Tâches", icon: CheckSquare },
     { id: "team", label: "Équipe", icon: Users },
-    { id: "discussion", label: "Discussion", icon: MessageSquare },
+    { id: "settings", label: "Paramètres", icon: MessageSquare },
   ];
 
   const handleMenuClick = (item) => {
