@@ -9,8 +9,10 @@ const mongoose = require('mongoose');
 exports.getProjects = async (req, res) => {
   try {
     // IMPORTANT: on calcule aussi `progressPercentage` à partir des tâches (réel)
+    // (done/terminé/termine)
     const role = (req.user?.role || '').toString().trim().toLowerCase();
     const userId = req.user?.id;
+
 
     // Étudiant : ne doit voir que ses projets (créés ou où il est membre)
     // Professeur/Encadrant : comportement inchangé (tous les projets)
@@ -37,7 +39,11 @@ exports.getProjects = async (req, res) => {
       if (!acc[pid]) acc[pid] = { totalTasks: 0, doneTasks: 0 };
       acc[pid].totalTasks += 1;
       const st = normalizeStatus(t.status);
-      if (st === 'done' || st === 'terminé' || st === 'termine') acc[pid].doneTasks += 1;
+      // Logs pour diagnostic si la progression reste à 0
+      console.log('[progress]', { pid, taskStatus: t.status, normalized: st });
+      if (st === 'done' || st === 'terminé' || st === 'termine') {
+        acc[pid].doneTasks += 1;
+      }
       return acc;
     }, {});
 
@@ -388,14 +394,41 @@ exports.addProjectMember = async (req, res) => {
 
 exports.getMyProjectsTeams = async (req, res) => {
   try {
-    // On cherche les projets où l'utilisateur est soit le créateur, soit un membre
-    const projects = await Project.find({
-      $or: [{ creator: req.user.id }, { members: req.user.id }]
-    })
-    .populate('members', 'fullName email role') // On récupère les infos des membres
-    .populate('supervisor', 'fullName email role'); // Et l'encadrant
+    const userId = req.user.id;
 
-    res.json({ success: true, projects });
+    const projects = await Project.find({
+      $or: [{ creator: userId }, { members: userId }]
+    })
+      .populate('members', 'fullName email role')
+      .populate('supervisor', 'fullName email role')
+      .sort({ createdAt: -1 });
+
+    // ✅ Calcul réel de la progression comme dans getProjects
+    const Task = require('../models/Task');
+    const projectIds = projects.map(p => p._id);
+    const tasks = await Task.find({ project: { $in: projectIds } }).select('project status');
+
+    const normalizeStatus = (s) => (s || '').toString().trim().toLowerCase();
+    const statsByProjectId = tasks.reduce((acc, t) => {
+      const pid = t.project?.toString();
+      if (!pid) return acc;
+      if (!acc[pid]) acc[pid] = { totalTasks: 0, doneTasks: 0 };
+      acc[pid].totalTasks += 1;
+      const st = normalizeStatus(t.status);
+      if (st === 'done' || st === 'terminé' || st === 'termine') {
+        acc[pid].doneTasks += 1;
+      }
+      return acc;
+    }, {});
+
+    const projectsWithProgress = projects.map(p => {
+      const pid = p._id.toString();
+      const st = statsByProjectId[pid] || { totalTasks: 0, doneTasks: 0 };
+      const progressPercentage = st.totalTasks > 0 ? Math.round((st.doneTasks / st.totalTasks) * 100) : 0;
+      return { ...p.toObject(), progressPercentage };
+    });
+
+    res.json({ success: true, projects: projectsWithProgress });
   } catch (error) {
     res.status(500).json({ success: false, message: "Erreur serveur." });
   }
